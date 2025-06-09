@@ -5,4 +5,7 @@ midiutil>=1.2.1
 music21>=7.3.3
 torch>=1.9.0
 tqdm>=4.62.0
-pytest>=6.2.5  # for testing 
+pytest>=6.2.5  # for testing
+python-rtmidi==1.5.6
+click==8.1.7
+rich==13.7.0

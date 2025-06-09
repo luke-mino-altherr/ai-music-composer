@@ -38,4 +38,7 @@ data/processed/
 
 # Logs
 *.log
-.DS_Store 
+.DS_Store
+
+# Neo4j
+neo4j/

@@ -1,3 +1,1 @@
-"""
-Test suite for AI Music Composer
-""" 
+"""Test suite for the AI Music Composer package."""
