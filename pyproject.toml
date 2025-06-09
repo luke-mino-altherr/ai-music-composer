@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "ai-music-composer"
+version = "0.1.0"
+description = "An intelligent music composition system that generates original musical pieces using artificial intelligence"
+authors = ["Your Name <your.email@example.com>"]
+readme = "README.md"
+packages = [{include = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+numpy = "^1.21.0"
+scipy = "^1.7.0"
+pretty-midi = "^0.2.9"
+midiutil = "^1.2.1"
+music21 = "^7.3.3"
+torch = "^1.9.0"
+tqdm = "^4.62.0"
+neo4j = "^5.14.0"
+neomodel = "^5.2.1"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^6.2.5"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api" 

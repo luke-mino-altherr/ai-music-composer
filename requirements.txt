@@ -1,0 +1,8 @@
+numpy>=1.21.0
+scipy>=1.7.0
+pretty_midi>=0.2.9
+midiutil>=1.2.1
+music21>=7.3.3
+torch>=1.9.0
+tqdm>=4.62.0
+pytest>=6.2.5  # for testing 
