@@ -67,7 +67,8 @@ class MIDIController:
         if not 0 <= port_number < len(available_ports):
             console.print("[red]Invalid port number![/red]")
             logger.error(
-                f"Invalid port number {port_number}. Available ports: 0-{len(available_ports)-1}"
+                f"Invalid port number {port_number}. Available ports: "
+                f"0-{len(available_ports)-1}"
             )
             return False
 
@@ -131,7 +132,8 @@ class MIDIController:
             duration: Note duration in seconds.
         """
         logger.debug(
-            f"Sending note with duration: note={note}, velocity={velocity}, channel={channel}, duration={duration}s"
+            f"Sending note with duration: note={note}, velocity={velocity}, "
+            f"channel={channel}, duration={duration}s"
         )
 
         if not self.port:

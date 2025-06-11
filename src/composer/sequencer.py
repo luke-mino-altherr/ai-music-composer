@@ -2,10 +2,11 @@
 
 import logging
 import os
-from typing import List, Dict
+from typing import List, Dict, Union
 from dataclasses import dataclass
 from .midi_controller import MIDIController
 from .transport import PreciseTransport
+from .structures import Sequence
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
@@ -28,9 +29,8 @@ if not logger.handlers:
 class SequenceState:
     """Represents the state of a musical sequence."""
 
-    sequence: List[tuple]  # List of (note, velocity, channel, duration) tuples
+    sequence: Sequence  # Updated to use Sequence dataclass
     beats_per_note: float
-    loop: bool
     current_iteration: int
     sequence_length: float = 0.0  # Total length in beats
 
@@ -70,7 +70,8 @@ class MIDISequencer:
             duration: Note duration in beats
         """
         logger.debug(
-            f"Scheduling single note: beat={beat}, note={note}, velocity={velocity}, channel={channel}, duration={duration}"
+            f"Scheduling single note: beat={beat}, note={note}, "
+            f"velocity={velocity}, channel={channel}, duration={duration}"
         )
 
         def note_on():
@@ -92,27 +93,38 @@ class MIDISequencer:
         )
 
     def schedule_sequence(
-        self, sequence: List[tuple], beats_per_note: float = 1.0, loop: bool = False
+        self, sequence: Union[List[tuple], Sequence], beats_per_note: float = 1.0
     ) -> int:
         """Schedule a sequence of notes to play.
 
         Args:
-            sequence: List of (note, velocity, channel, duration) tuples
-            beats_per_note: Number of beats each note should take
-            loop: If True, sequence will loop indefinitely until stopped
+            sequence: Either a Sequence object or list of (note, velocity,
+                channel, duration) tuples
+            beats_per_note: Number of beats each note should take (ignored if
+                sequence is Sequence object)
 
         Returns:
             Sequence ID that can be used to remove the sequence later
         """
-        logger.debug(
-            f"Scheduling sequence: length={len(sequence)}, beats_per_note={beats_per_note}, loop={loop}"
-        )
+        # Convert legacy tuple list to Sequence object if needed
+        if isinstance(sequence, list):
+            seq_obj = Sequence.from_tuple_list(sequence, loop=False)
+            logger.debug(
+                f"Converted tuple list to Sequence object: length={len(sequence)}, "
+                f"beats_per_note={beats_per_note}"
+            )
+        else:
+            seq_obj = sequence
+            logger.debug(
+                f"Using Sequence object: length={len(seq_obj.notes)}, "
+                f"loop={seq_obj.loop}"
+            )
 
         sequence_id = self._next_sequence_id
         self._next_sequence_id += 1
 
         # Calculate total sequence length
-        sequence_length = sum(x[3] for x in sequence)
+        sequence_length = seq_obj.total_duration()
 
         logger.debug(
             f"Sequence {sequence_id} - calculated length: {sequence_length} beats"
@@ -120,9 +132,8 @@ class MIDISequencer:
 
         # Create and store sequence state
         state = SequenceState(
-            sequence=sequence,
+            sequence=seq_obj,
             beats_per_note=beats_per_note,
-            loop=loop,
             current_iteration=0,
             sequence_length=sequence_length,
         )
@@ -137,7 +148,8 @@ class MIDISequencer:
         self._schedule_iteration(sequence_id, current_beat)
 
         logger.info(
-            f"Sequence {sequence_id} scheduled successfully with {len(sequence)} notes"
+            f"Sequence {sequence_id} scheduled successfully with "
+            f"{len(seq_obj.notes)} notes"
         )
         return sequence_id
 
@@ -150,59 +162,72 @@ class MIDISequencer:
         """
         if sequence_id not in self.active_sequences:
             logger.warning(
-                f"Cannot schedule iteration for sequence {sequence_id}: sequence not found"
+                f"Cannot schedule iteration for sequence {sequence_id}: "
+                f"sequence not found"
             )
             return
 
         state = self.active_sequences[sequence_id]
-        current_beat = start_beat
+        seq_obj = state.sequence
 
         logger.debug(
-            f"Scheduling iteration {state.current_iteration} of sequence {sequence_id} starting at beat {start_beat}"
+            f"Scheduling iteration {state.current_iteration} of sequence "
+            f"{sequence_id} starting at beat {start_beat}"
         )
 
         # Schedule all notes in the sequence
         notes_scheduled = 0
-        for note, velocity, channel, duration in state.sequence:
+        for note in seq_obj.notes:
+            # Calculate absolute beat position
+            absolute_beat = start_beat + note.start_beat
+
             # Use default parameters to properly capture loop variables
-            def make_note_on(n=note, v=velocity, c=channel, seq_id=sequence_id):
+            def make_note_on(
+                n=note.pitch, v=note.velocity, c=note.channel, seq_id=sequence_id
+            ):
                 def note_on_callback():
                     logger.debug(
-                        f"Executing note_on for sequence {seq_id}: note={n}, velocity={v}, channel={c}"
+                        f"Executing note_on for sequence {seq_id}: note={n}, "
+                        f"velocity={v}, channel={c}"
                     )
                     self.midi_controller.send_note_on(note=n, velocity=v, channel=c)
 
                 return note_on_callback
 
-            def make_note_off(n=note, c=channel, seq_id=sequence_id):
+            def make_note_off(n=note.pitch, c=note.channel, seq_id=sequence_id):
                 def note_off_callback():
                     logger.debug(
-                        f"Executing note_off for sequence {seq_id}: note={n}, channel={c}"
+                        f"Executing note_off for sequence {seq_id}: note={n}, "
+                        f"channel={c}"
                     )
                     self.midi_controller.send_note_off(note=n, channel=c)
 
                 return note_off_callback
 
-            self.transport.schedule_event(current_beat, make_note_on())
-            self.transport.schedule_event(current_beat + duration, make_note_off())
+            self.transport.schedule_event(absolute_beat, make_note_on())
+            self.transport.schedule_event(
+                absolute_beat + note.duration, make_note_off()
+            )
             logger.debug(
-                f"Sequence {sequence_id} note {notes_scheduled}: scheduled at beat {current_beat}, duration {duration}"
+                f"Sequence {sequence_id} note {notes_scheduled}: scheduled at "
+                f"beat {absolute_beat}, duration {note.duration}"
             )
 
-            current_beat += duration
             notes_scheduled += 1
 
         logger.debug(
-            f"Sequence {sequence_id} iteration {state.current_iteration}: scheduled {notes_scheduled} notes"
+            f"Sequence {sequence_id} iteration {state.current_iteration}: "
+            f"scheduled {notes_scheduled} notes"
         )
 
         # If looping, schedule the next iteration
-        if state.loop:
+        if seq_obj.loop:
             state.current_iteration += 1
             next_start = start_beat + state.sequence_length
 
             logger.debug(
-                f"Sequence {sequence_id} will loop - next iteration {state.current_iteration} at beat {next_start}"
+                f"Sequence {sequence_id} will loop - next iteration "
+                f"{state.current_iteration} at beat {next_start}"
             )
 
             def schedule_next():
@@ -212,7 +237,8 @@ class MIDISequencer:
             self.transport.schedule_event(next_start, schedule_next)
         else:
             logger.debug(
-                f"Sequence {sequence_id} iteration {state.current_iteration} is final (no loop)"
+                f"Sequence {sequence_id} iteration {state.current_iteration} "
+                f"is final (no loop)"
             )
 
     def stop_loop(self, sequence_id: int) -> None:
@@ -225,21 +251,21 @@ class MIDISequencer:
 
         if sequence_id in self.active_sequences:
             state = self.active_sequences[sequence_id]
-            was_looping = state.loop
-            state.loop = (
+            was_looping = state.sequence.loop
+            state.sequence.loop = (
                 False  # This will prevent the next iteration from being scheduled
             )
 
             if was_looping:
                 logger.info(
-                    f"Sequence {sequence_id} loop stopped after iteration {state.current_iteration}"
+                    f"Sequence {sequence_id} loop stopped after iteration "
+                    f"{state.current_iteration}"
                 )
             else:
                 logger.warning(f"Sequence {sequence_id} was not looping")
         else:
-            logger.error(
-                f"Cannot stop loop for sequence {sequence_id}: sequence not found"
-            )
+            logger.warning(f"Sequence {sequence_id} not found in active sequences")
+            raise KeyError(f"No active sequence with ID {sequence_id}")
 
     def remove_sequence(self, sequence_id: int) -> None:
         """Remove a previously scheduled sequence.
@@ -253,7 +279,8 @@ class MIDISequencer:
             state = self.active_sequences[sequence_id]
             del self.active_sequences[sequence_id]
             logger.info(
-                f"Sequence {sequence_id} removed (was at iteration {state.current_iteration})"
+                f"Sequence {sequence_id} removed (was at iteration "
+                f"{state.current_iteration})"
             )
         else:
             logger.warning(f"Cannot remove sequence {sequence_id}: sequence not found")

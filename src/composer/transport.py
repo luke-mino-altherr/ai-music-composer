@@ -66,10 +66,12 @@ class PreciseTransport:
 
         Args:
             initial_bpm: Initial tempo in beats per minute
-            max_workers: Maximum number of worker threads for concurrent callback execution
+            max_workers: Maximum number of worker threads for concurrent
+                callback execution
         """
         logger.debug(
-            f"Initializing PreciseTransport with BPM: {initial_bpm}, max_workers: {max_workers}"
+            f"Initializing PreciseTransport with BPM: {initial_bpm}, "
+            f"max_workers: {max_workers}"
         )
         self.bpm = initial_bpm
         self._ns_per_beat = self.NANOSECONDS_PER_MINUTE / initial_bpm
@@ -99,7 +101,8 @@ class PreciseTransport:
         self._jitter_stats = {"count": 0, "total_abs_jitter": 0, "max_jitter": 0}
 
         logger.debug(
-            f"Transport initialized - ns_per_beat: {self._ns_per_beat}, jitter thresholds: "
+            f"Transport initialized - ns_per_beat: {self._ns_per_beat}, "
+            f"jitter thresholds: "
             f"good={self.GOOD_JITTER_NS/1_000_000:.1f}ms, "
             f"warning={self.WARNING_JITTER_NS/1_000_000:.1f}ms, "
             f"critical={self.CRITICAL_JITTER_NS/1_000_000:.1f}ms"
@@ -110,13 +113,15 @@ class PreciseTransport:
         """Get the current beat position."""
         if not self._is_playing:
             logger.debug(
-                f"Transport not playing, returning stored beat: {self._current_beat}"
+                f"Transport not playing, returning stored beat: "
+                f"{self._current_beat}"
             )
             return self._current_beat
         elapsed_ns = time_get_time() - self._start_time_ns
         current_beat = elapsed_ns / self._ns_per_beat
         logger.debug(
-            f"Transport playing - elapsed: {elapsed_ns}ns, current_beat: {current_beat:.6f}"
+            f"Transport playing - elapsed: {elapsed_ns}ns, "
+            f"current_beat: {current_beat:.6f}"
         )
         return current_beat
 
@@ -137,7 +142,8 @@ class PreciseTransport:
 
         wait_duration = time_get_time() - start_wait
         logger.debug(
-            f"Precise wait completed - target: {target_time_ns}, actual wait: {wait_duration}ns"
+            f"Precise wait completed - target: {target_time_ns}, "
+            f"actual wait: {wait_duration}ns"
         )
 
     def _process_events(self):
@@ -161,7 +167,8 @@ class PreciseTransport:
             self._wait_for_next_event()
 
         logger.debug(
-            f"Event processing thread stopped. Total events processed: {events_processed}"
+            f"Event processing thread stopped. Total events processed: "
+            f"{events_processed}"
         )
 
     def _collect_ready_events(self, now_ns: int) -> List[TimedEvent]:
@@ -198,25 +205,33 @@ class PreciseTransport:
         """Log jitter information based on severity."""
         if abs_jitter > self.CRITICAL_JITTER_NS:
             logger.error(
-                f"CRITICAL timing jitter of {jitter/1_000_000:.3f}ms detected for event {event.event_id} "
-                f"(max: {self._jitter_stats['max_jitter']/1_000:.1f}μs)"
-            )
-            print(f"ERROR: Critical timing jitter of {jitter/1_000_000:.3f}ms detected")
-        elif abs_jitter > self.WARNING_JITTER_NS:
-            logger.warning(
-                f"Noticeable timing jitter of {jitter/1_000_000:.3f}ms detected for event {event.event_id} "
+                f"CRITICAL timing jitter of {jitter/1_000_000:.3f}ms detected "
+                f"for event {event.event_id} "
                 f"(max: {self._jitter_stats['max_jitter']/1_000:.1f}μs)"
             )
             print(
-                f"Warning: Noticeable timing jitter of {jitter/1_000_000:.3f}ms detected"
+                f"ERROR: Critical timing jitter of "
+                f"{jitter/1_000_000:.3f}ms detected"
+            )
+        elif abs_jitter > self.WARNING_JITTER_NS:
+            logger.warning(
+                f"Noticeable timing jitter of {jitter/1_000_000:.3f}ms detected "
+                f"for event {event.event_id} "
+                f"(max: {self._jitter_stats['max_jitter']/1_000:.1f}μs)"
+            )
+            print(
+                f"Warning: Noticeable timing jitter of "
+                f"{jitter/1_000_000:.3f}ms detected"
             )
         elif abs_jitter > self.GOOD_JITTER_NS:
             logger.info(
-                f"Acceptable timing jitter of {jitter/1_000_000:.3f}ms for event {event.event_id}"
+                f"Acceptable timing jitter of {jitter/1_000_000:.3f}ms "
+                f"for event {event.event_id}"
             )
         else:
             logger.debug(
-                f"Event {event.event_id} executed with excellent jitter: {jitter/1_000:.1f}μs"
+                f"Event {event.event_id} executed with excellent jitter: "
+                f"{jitter/1_000:.1f}μs"
             )
 
     def _execute_event_callback(self, event: TimedEvent):
@@ -242,7 +257,8 @@ class PreciseTransport:
                 wait_time_ns = next_event.timestamp_ns - time_get_time()
                 if wait_time_ns > 0:
                     logger.debug(
-                        f"Waiting {wait_time_ns/1_000_000:.3f}ms for next event {next_event.event_id}"
+                        f"Waiting {wait_time_ns/1_000_000:.3f}ms for next event "
+                        f"{next_event.event_id}"
                     )
 
         # Wait outside the lock with appropriate strategy
@@ -317,7 +333,8 @@ class PreciseTransport:
         # Check if this is an immediate event (already past due)
         if timestamp_ns <= current_time_ns:
             logger.debug(
-                f"Event {event_id} at beat {beat} is immediate (past due by {(current_time_ns - timestamp_ns)/1_000_000:.3f}ms)"
+                f"Event {event_id} at beat {beat} is immediate (past due by "
+                f"{(current_time_ns - timestamp_ns)/1_000_000:.3f}ms)"
             )
             # Execute immediately in the calling thread to avoid scheduling delay
             try:
@@ -336,7 +353,8 @@ class PreciseTransport:
         )
 
         logger.debug(
-            f"Scheduling event {event_id} at beat {beat} (timestamp: {timestamp_ns}, concurrent: {concurrent})"
+            f"Scheduling event {event_id} at beat {beat} "
+            f"(timestamp: {timestamp_ns}ns)"
         )
 
         with self._lock:
@@ -363,7 +381,8 @@ class PreciseTransport:
 
             if initial_size != final_size:
                 logger.debug(
-                    f"Event {event_id} removed successfully. Queue size: {initial_size} -> {final_size}"
+                    f"Event {event_id} removed successfully. Queue size: "
+                    f"{initial_size} -> {final_size}"
                 )
             else:
                 logger.warning(f"Event {event_id} not found in queue")
@@ -382,7 +401,8 @@ class PreciseTransport:
             self._ns_per_beat = self.NANOSECONDS_PER_MINUTE / bpm
 
             logger.debug(
-                f"Tempo change - ns_per_beat: {old_ns_per_beat} -> {self._ns_per_beat}"
+                f"Tempo changed from {old_ns_per_beat:.2f} to {bpm:.2f} BPM "
+                f"(ns_per_beat: {self._ns_per_beat:.0f}ns)"
             )
 
             if self._is_playing:
@@ -411,11 +431,13 @@ class PreciseTransport:
                         heapq.heappush(self._events, new_event)
                         events_rescheduled += 1
                         logger.debug(
-                            f"Event {event.event_id} rescheduled: {event.timestamp_ns} -> {new_timestamp}"
+                            f"Event {event.event_id} rescheduled: "
+                            f"{event.timestamp_ns} -> {new_timestamp}"
                         )
 
                 logger.info(
-                    f"Tempo changed to {bpm} BPM. Rescheduled {events_rescheduled} events"
+                    f"Tempo changed to {bpm} BPM. Rescheduled "
+                    f"{events_rescheduled} events"
                 )
 
     def start(self):
@@ -435,7 +457,9 @@ class PreciseTransport:
         )
         logger.debug(f"Thread pool initialized with {self._max_workers} workers")
 
-        logger.debug(f"Transport started at timestamp: {self._start_time_ns}")
+        logger.debug(
+            f"Transport started at beat {self._current_beat:.6f} " f"(BPM: {self.bpm})"
+        )
 
         self._transport_thread = threading.Thread(target=self._process_events)
         self._transport_thread.start()
@@ -459,7 +483,8 @@ class PreciseTransport:
         # Shutdown thread pool and wait for all callbacks to complete
         if self._thread_pool:
             logger.debug(
-                f"Shutting down thread pool with {len(self._active_futures)} active futures"
+                f"Shutting down thread pool with {len(self._active_futures)} "
+                f"active futures"
             )
             # Wait for currently executing callbacks to complete
             for future in self._active_futures:
@@ -474,7 +499,7 @@ class PreciseTransport:
             logger.debug("Thread pool shut down successfully")
 
         self._current_beat = self.current_beat
-        logger.debug(f"Transport stopped at beat: {self._current_beat}")
+        logger.debug(f"Transport stopped at beat {self._current_beat:.6f}")
 
         # Clear pending events
         with self._lock:
@@ -533,10 +558,10 @@ class PreciseTransport:
         }
 
     def schedule_critical_event(self, beat: float, callback: Callable) -> int:
-        """Schedule a critical event that must execute immediately in the timing thread.
+        """Schedule a critical event that must execute immediately in timing thread.
 
-        Critical events bypass the thread pool and execute in the main timing thread
-        to ensure minimal latency. Use for time-sensitive operations.
+        Critical events bypass the thread pool and execute in the main timing
+        thread to ensure minimal latency. Use for time-sensitive operations.
 
         Args:
             beat: Beat position when the event should occur
