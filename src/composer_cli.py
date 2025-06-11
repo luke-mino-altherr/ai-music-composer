@@ -2,12 +2,21 @@
 
 """Command-line interface for the AI Music Composer."""
 
+import os
+import sys
 import click
 from rich.console import Console
 from rich.prompt import Prompt
 from typing import List, Optional
-import threading
+
+# Add src directory to Python path when running directly
+if __name__ == "__main__":
+    src_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0, src_dir)
+
 from composer.midi_controller import MIDIController
+from composer.transport import PreciseTransport
+from composer.sequencer import MIDISequencer
 
 console = Console()
 
@@ -56,14 +65,19 @@ def print_help():
     [yellow]list[/yellow] - List available MIDI ports
     [yellow]connect <port_number>[/yellow] - Connect to a specific MIDI port
     [yellow]note <note> <velocity> [channel] [duration][/yellow] - Send a MIDI note
-    [yellow]sequence <note_sequence>[/yellow] - Play a sequence of notes in a loop
-    [yellow]stop[/yellow] - Stop the currently playing sequence
+    [yellow]sequence <note_sequence> [--loop][/yellow] - Schedule a sequence of notes
+    [yellow]stoploop <sequence_id>[/yellow] - Stop a looping sequence
+    [yellow]start[/yellow] - Start the transport
+    [yellow]stop[/yellow] - Stop all playing sequences
     [yellow]help[/yellow] - Show this help message
     [yellow]exit[/yellow] - Exit the program
 
 [bold]Sequence Format:[/bold]
     note,velocity,channel,duration;note,velocity,channel,duration;...
     Example: 60,100,0,0.5;67,100,0,0.5;72,100,0,0.5
+
+[bold]Note:[/bold] Durations in sequences are in beats (musical timing)
+    Add --loop flag to sequence command to make it loop indefinitely
     """
     console.print(help_text)
 
@@ -94,32 +108,29 @@ def handle_note_command(controller: MIDIController, parts: List[str]) -> None:
         console.print(msg)
 
 
-def handle_sequence_command(controller: MIDIController, parts: List[str]) -> None:
+def handle_sequence_command(sequencer: MIDISequencer, parts: List[str]) -> None:
     """Handle the sequence command.
 
     Args:
-        controller: The MIDI controller instance.
-        parts: Command parts (sequence string).
+        sequencer: The MIDI sequencer instance.
+        parts: Command parts (sequence string and optional --loop flag).
     """
     if len(parts) < 2:
-        console.print("[red]Usage: sequence <note_sequence>[/red]")
+        console.print("[red]Usage: sequence <note_sequence> [--loop][/red]")
         console.print("Example: sequence 60,100,0,0.5;67,100,0,0.5;72,100,0,0.5")
         return
 
     try:
-        # Stop any existing sequence
-        controller.stop_sequence()
-
-        # Parse and start new sequence
-        sequence_str = " ".join(parts[1:])
+        # Check for --loop flag
+        loop = "--loop" in parts
+        sequence_str = " ".join(p for p in parts[1:] if p != "--loop")
         sequence = parse_sequence(sequence_str)
-        controller.is_playing = True
-        # Start sequence in a background thread
-        sequence_thread = threading.Thread(
-            target=controller.play_sequence, args=(sequence,), daemon=True
-        )
-        sequence_thread.start()
-        console.print("[green]Started playing sequence[/green]")
+
+        # Schedule the sequence with the sequencer
+        sequence_id = sequencer.schedule_sequence(sequence, loop=loop)
+        status = "looping" if loop else "scheduled"
+        console.print(f"[green]Sequence {status} (ID: {sequence_id})[/green]")
+
     except ValueError as e:
         console.print(f"[red]Error in sequence format: {str(e)}[/red]")
 
@@ -141,13 +152,40 @@ def handle_connect_command(controller: MIDIController, parts: List[str]) -> None
         console.print("[red]Port number must be an integer![/red]")
 
 
+def handle_stoploop_command(sequencer: MIDISequencer, parts: List[str]) -> None:
+    """Handle the stoploop command.
+
+    Args:
+        sequencer: The MIDI sequencer instance.
+        parts: Command parts (sequence ID).
+    """
+    if len(parts) != 2:
+        console.print("[red]Usage: stoploop <sequence_id>[/red]")
+        return
+
+    try:
+        sequence_id = int(parts[1])
+        sequencer.stop_loop(sequence_id)
+        console.print(f"[green]Stopped looping sequence {sequence_id}[/green]")
+    except ValueError:
+        console.print("[red]Sequence ID must be a number[/red]")
+    except KeyError:
+        console.print(f"[red]No looping sequence found with ID {sequence_id}[/red]")
+
+
 def handle_command(
-    controller: MIDIController, command: str, parts: List[str]
+    controller: MIDIController,
+    sequencer: MIDISequencer,
+    transport: PreciseTransport,
+    command: str,
+    parts: List[str],
 ) -> Optional[bool]:
     """Handle a single command.
 
     Args:
         controller: The MIDI controller instance.
+        sequencer: The MIDI sequencer instance.
+        transport: The PreciseTransport instance.
         command: The full command string.
         parts: The command split into parts.
 
@@ -155,7 +193,8 @@ def handle_command(
         True if should exit, None otherwise.
     """
     if command == "exit":
-        controller.stop_sequence()
+        sequencer.clear_all_sequences()
+        transport.stop()
         return True
 
     if command == "help":
@@ -167,10 +206,15 @@ def handle_command(
     elif command == "note":
         handle_note_command(controller, parts)
     elif command == "sequence":
-        handle_sequence_command(controller, parts)
+        handle_sequence_command(sequencer, parts)
+    elif command == "stoploop":
+        handle_stoploop_command(sequencer, parts)
+    elif command == "start":
+        transport.start()
     elif command == "stop":
-        controller.stop_sequence()
-        console.print("[yellow]Stopped sequence playback[/yellow]")
+        sequencer.clear_all_sequences()
+        sequencer.all_notes_off()
+        console.print("[yellow]Stopped all sequences[/yellow]")
     else:
         console.print(f"[red]Unknown command: {command}[/red]")
         print_help()
@@ -185,25 +229,37 @@ def main():
     console.print("Type 'help' for available commands")
 
     controller = MIDIController()
+    transport = PreciseTransport(initial_bpm=120.0)  # Default 120 BPM
+    sequencer = MIDISequencer(controller, transport)
 
-    while True:
+    try:
+        while True:
+            try:
+                command = (
+                    Prompt.ask("\n[bold green]composer>[/bold green]").strip().lower()
+                )
+                parts = command.split()
+
+                if not parts:
+                    continue
+
+                if handle_command(controller, sequencer, transport, parts[0], parts):
+                    break
+
+            except KeyboardInterrupt:
+                console.print("\n[yellow]Use 'exit' to quit[/yellow]")
+            except Exception as e:
+                console.print(f"[red]Error: {str(e)}[/red]")
+    finally:
+        # Ensure proper cleanup even if an exception occurs
         try:
-            command = Prompt.ask("\n[bold green]composer>[/bold green]").strip().lower()
-            parts = command.split()
-
-            if not parts:
-                continue
-
-            if handle_command(controller, parts[0], parts):
-                break
-
-        except KeyboardInterrupt:
-            console.print("\n[yellow]Use 'exit' to quit[/yellow]")
+            sequencer.clear_all_sequences()
+            transport.stop()
         except Exception as e:
-            console.print(f"[red]Error: {str(e)}[/red]")
+            console.print(f"[red]Error during cleanup: {str(e)}[/red]")
 
-    controller.close()
-    console.print("[blue]Goodbye![/blue]")
+        controller.close()
+        console.print("[blue]Goodbye![/blue]")
 
 
 if __name__ == "__main__":

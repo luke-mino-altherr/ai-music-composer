@@ -4,7 +4,8 @@ extend-ignore =
     # Whitespace before ':' (conflicts with Black)
     E203,
     # Line break before binary operator (conflicts with Black)
-    W503
+    W503,
+    E501
 exclude =
     .git,
     __pycache__,
