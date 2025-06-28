@@ -2,7 +2,8 @@
 
 from dataclasses import dataclass
 from typing import Optional, Protocol
-from .structures import Sequence, Note
+
+from .structures import Note, Sequence
 
 
 @dataclass
@@ -12,7 +13,6 @@ class InstrumentConfig:
     channel: int  # MIDI channel (0-15)
     name: Optional[str] = None
     default_velocity: int = 100
-    transpose: int = 0  # Semitones to transpose all notes
 
     def __post_init__(self):
         """Validate instrument configuration."""

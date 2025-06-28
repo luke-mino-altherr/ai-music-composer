@@ -4,25 +4,22 @@
 
 import os
 import sys
+from typing import List, Optional
+
 import click
 from rich.console import Console
 from rich.prompt import Prompt
-from typing import List, Optional
 
 # Add src directory to Python path when running directly
 if __name__ == "__main__":
     src_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     sys.path.insert(0, src_dir)
 
-from composer.midi_controller import MIDIController
-from composer.transport import PreciseTransport
-from composer.sequencer import MIDISequencer
-from composer.structures import Note, Sequence
-from composer import (
-    MIDIControllerAdapter,
-    SequencerAdapter,
-    InstrumentManager,
-)
+from midi_generator import InstrumentManager, MIDIControllerAdapter, SequencerAdapter
+from midi_generator.midi_controller import MIDIController
+from midi_generator.sequencer import MIDISequencer
+from midi_generator.structures import Note, Sequence
+from midi_generator.transport import PreciseTransport
 
 console = Console()
 

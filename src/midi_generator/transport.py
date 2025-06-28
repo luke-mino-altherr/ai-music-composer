@@ -1,14 +1,14 @@
 """Transport module for precise musical timing and sequence synchronization."""
 
-import time
-import threading
+import heapq
 import logging
 import os
-from typing import List, Optional, Callable, Dict
-from dataclasses import dataclass
-import heapq
 import platform
-from concurrent.futures import ThreadPoolExecutor, Future
+import threading
+import time
+from concurrent.futures import Future, ThreadPoolExecutor
+from dataclasses import dataclass
+from typing import Callable, Dict, List, Optional
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)

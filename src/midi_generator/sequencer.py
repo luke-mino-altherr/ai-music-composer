@@ -2,11 +2,12 @@
 
 import logging
 import os
-from typing import List, Dict, Union
 from dataclasses import dataclass
+from typing import Dict, List, Union
+
 from .midi_controller import MIDIController
-from .transport import PreciseTransport
 from .structures import Sequence
+from .transport import PreciseTransport
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
@@ -240,6 +241,33 @@ class MIDISequencer:
                 f"Sequence {sequence_id} iteration {state.current_iteration} "
                 f"is final (no loop)"
             )
+
+    def start_loop(self, sequence_id: int) -> None:
+        """Enable looping for a sequence.
+
+        Args:
+            sequence_id: ID of the sequence to start looping
+
+        Raises:
+            KeyError: If sequence_id is not found in active sequences
+        """
+        logger.debug(f"Starting loop for sequence {sequence_id}")
+
+        if sequence_id in self.active_sequences:
+            state = self.active_sequences[sequence_id]
+            was_looping = state.sequence.loop
+
+            if not was_looping:
+                current_beat = self.transport.current_beat
+                logger.debug(
+                    f"Scheduling sequence {sequence_id} starting at beat {current_beat}"
+                )
+                self._schedule_iteration(sequence_id, current_beat)
+            else:
+                logger.warning(f"Sequence {sequence_id} was already looping")
+        else:
+            logger.warning(f"Sequence {sequence_id} not found in active sequences")
+            raise KeyError(f"No active sequence with ID {sequence_id}")
 
     def stop_loop(self, sequence_id: int) -> None:
         """Stop a looping sequence.

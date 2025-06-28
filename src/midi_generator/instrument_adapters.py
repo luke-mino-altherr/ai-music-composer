@@ -1,6 +1,7 @@
 """Adapter classes to bridge Instrument abstraction with existing composer classes."""
 
 from typing import TYPE_CHECKING
+
 from .structures import Sequence
 
 # Avoid circular imports

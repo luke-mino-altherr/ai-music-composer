@@ -1,10 +1,11 @@
 """MIDI controller module for handling MIDI output and playback."""
 
-import time
 import logging
 import os
-from rich.console import Console
+import time
+
 import mido
+from rich.console import Console
 
 console = Console()
 

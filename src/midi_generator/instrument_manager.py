@@ -1,8 +1,10 @@
 """Instrument management for organizing and controlling multiple instruments."""
 
 from typing import Dict, Optional
-from rich.table import Table
+
 from rich.console import Console
+from rich.table import Table
+
 from .instrument import (
     Instrument,
     InstrumentConfig,

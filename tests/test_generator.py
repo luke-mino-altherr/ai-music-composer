@@ -1,7 +1,8 @@
 """Tests for the music generator module."""
 
 import pytest
-from src.composer.generator import MusicGenerator
+
+from src.midi_generator.generator import MusicGenerator
 
 
 def test_music_generator_initialization():

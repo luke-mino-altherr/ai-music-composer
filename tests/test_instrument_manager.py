@@ -1,7 +1,8 @@
 """Tests for the InstrumentManager class."""
 
 import pytest
-from src.composer import InstrumentManager, Note, Sequence
+
+from src.midi_generator import InstrumentManager, Note, Sequence
 
 
 class MockNotePlayer:

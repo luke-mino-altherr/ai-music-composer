@@ -1,12 +1,8 @@
 """Tests for the Instrument abstraction."""
 
 import pytest
-from src.composer import (
-    Instrument,
-    InstrumentConfig,
-    Note,
-    Sequence,
-)
+
+from src.midi_generator import Instrument, InstrumentConfig, Note, Sequence
 
 
 class MockNotePlayer:

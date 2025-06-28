@@ -1,7 +1,5 @@
 """Core music composition and generation functionality."""
 
-from .midi_controller import MIDIController
-from .structures import Note, Sequence
 from .instrument import (
     Instrument,
     InstrumentConfig,
@@ -9,11 +7,13 @@ from .instrument import (
     SequencePlayerProtocol,
 )
 from .instrument_adapters import (
+    CombinedAdapter,
     MIDIControllerAdapter,
     SequencerAdapter,
-    CombinedAdapter,
 )
 from .instrument_manager import InstrumentManager
+from .midi_controller import MIDIController
+from .structures import Note, Sequence
 
 __all__ = [
     # Existing exports
