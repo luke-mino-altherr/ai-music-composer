@@ -5,8 +5,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Dict, List, Optional, Set
 
-from midi_generator.structures import Note
-
+from ..midi_generator.structures import Note
 from .models import MIDICommand
 
 

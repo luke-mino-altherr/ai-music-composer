@@ -15,13 +15,13 @@ if __name__ == "__main__":
     src_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     sys.path.insert(0, src_dir)
 
-from config import get_default_bpm
-from logging_config import setup_logging
-from midi_generator import InstrumentManager, MIDIControllerAdapter, SequencerAdapter
-from midi_generator.midi_controller import MIDIController
-from midi_generator.sequencer import MIDISequencer
-from midi_generator.structures import Note, Sequence
-from midi_generator.transport import PreciseTransport
+from .config import get_default_bpm
+from .logging_config import setup_logging
+from .midi_generator import InstrumentManager, MIDIControllerAdapter, SequencerAdapter
+from .midi_generator.midi_controller import MIDIController
+from .midi_generator.sequencer import MIDISequencer
+from .midi_generator.structures import Note, Sequence
+from .midi_generator.transport import PreciseTransport
 
 console = Console()
 
@@ -476,8 +476,22 @@ def _handle_stop_command(
 @click.command()
 def main():
     """AI Music Composer CLI for controlling MIDI output and playback."""
-    console.print("[bold blue]AI Music Composer CLI[/bold blue]")
-    console.print("Type 'help' for available commands")
+    # ASCII Art Introduction
+    # flake8: noqa
+    ascii_art = """
+[bold cyan]
+    ___    ____   __  ___           _         ______
+   /   |  /  _/  /  |/  /_  _______(_)____   / ____/___  ____ ___  ____  ____  ________
+  / /| |  / /   / /|_/ / / / / ___/ / ____/  / /   / __ \/ __ `__ \/ __ \/ __ \/ ___/ _ \\
+ / ___ |_/ /   / /  / / /_/ (__  ) / /__    / /___/ /_/ / / / / / / /_/ / /_/ (__  )  __/
+/_/  |_/___/  /_/  /_/\__,_/____/_/\___/    \____/\____/_/ /_/ /_/ .___/\____/____/\___/
+                                                                /_/
+[/bold cyan]
+[bold yellow]                           🎼 Direct MIDI Control CLI 🎹[/bold yellow]
+[dim]                        Advanced MIDI sequencing and control[/dim]
+"""
+    console.print(ascii_art)
+    console.print("[bold green]Type 'help' for available commands[/bold green]")
 
     # Initialize logging
     setup_logging()

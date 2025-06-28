@@ -22,14 +22,14 @@ if __name__ == "__main__":
     src_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     sys.path.insert(0, src_dir)
 
-from config import get_default_bpm, get_openai_api_key
-from llm_composer import LLMComposer
-from llm_composer.midi_tools import MIDIToolHandler, MIDIToolResult
-from logging_config import get_logger, setup_logging
-from midi_generator import InstrumentManager, MIDIControllerAdapter, SequencerAdapter
-from midi_generator.midi_controller import MIDIController
-from midi_generator.sequencer import MIDISequencer
-from midi_generator.transport import PreciseTransport
+from .config import get_default_bpm, get_openai_api_key
+from .llm_composer import LLMComposer
+from .llm_composer.midi_tools import MIDIToolHandler, MIDIToolResult
+from .logging_config import get_logger, setup_logging
+from .midi_generator import InstrumentManager, MIDIControllerAdapter, SequencerAdapter
+from .midi_generator.midi_controller import MIDIController
+from .midi_generator.sequencer import MIDISequencer
+from .midi_generator.transport import PreciseTransport
 
 console = Console()
 logger = get_logger(__name__)
@@ -392,8 +392,43 @@ def _initialize_systems(session: LLMCLISession) -> bool:
     Returns:
         True if initialization successful, False otherwise
     """
-    console.print("[bold blue]🎵 AI Music Composer - LLM CLI[/bold blue]")
-    console.print("Initializing...")
+    # ASCII Art Introduction
+    # flake8: noqa
+    ascii_art = """
+[bold cyan]
+                                    ~~~
+                                   (   )
+                                  (     )
+                                 (       )
+                                (  🎵 🎹 🎵  )
+                             ∩───(           )───∩
+                            (     ~~~~~~~~~~     )
+                           (    AI MUSIC COMPOSER   )
+                          (    ~~~~~~~~~~~~~~~~    )
+                         (                          )
+                        (  ~~~~~~~~~~~~~~~~~~~~~~~~  )
+                       (                              )
+                      (  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~  )
+                     (                                    )
+                    (  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~  )
+                   (                                          )
+                  (                                            )
+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+[/bold cyan]
+
+[bold magenta]🎼 MIDI Generation Through Natural Conversation 🎵[/bold magenta]
+
+[bold white]Simply describe the music you want in plain English:[/bold white]
+[italic green]"Create a gentle piano melody in C major"
+"Add a bass line that follows the chord progression"
+"Make it sound more upbeat and energetic"[/italic green]
+
+[bold yellow]✨ AI translates your words into real-time MIDI ✨[/bold yellow]
+
+[dim]Created by Luke Mino-Altherr[/dim]
+"""
+    console.print(ascii_art)
+    console.print("[bold green]Initializing systems...[/bold green]")
 
     if not session.initialize_midi_system():
         return False

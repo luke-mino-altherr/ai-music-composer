@@ -3,10 +3,9 @@
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
-from midi_generator import InstrumentManager
-from midi_generator.sequencer import MIDISequencer
-from midi_generator.structures import Note, Sequence
-
+from ..midi_generator import InstrumentManager
+from ..midi_generator.sequencer import MIDISequencer
+from ..midi_generator.structures import Note, Sequence
 from .models import (
     CreateInstrumentCommand,
     MIDICommand,
