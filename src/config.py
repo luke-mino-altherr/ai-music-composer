@@ -60,15 +60,15 @@ class MIDIConfig:
 class LoggingConfig:
     """Logging configuration."""
 
-    level: str = "INFO"
+    level: str = "CRITICAL"
     format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
     # Module-specific log levels
-    midi_log_level: str = "INFO"
-    sequencer_log_level: str = "INFO"
-    transport_log_level: str = "INFO"
-    llm_log_level: str = "INFO"
-    database_log_level: str = "INFO"
+    midi_log_level: str = level
+    sequencer_log_level: str = level
+    transport_log_level: str = level
+    llm_log_level: str = level
+    database_log_level: str = level
 
 
 @dataclass

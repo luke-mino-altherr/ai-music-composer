@@ -187,7 +187,7 @@ class LLMCLISession:
         try:
             # Add system context to the prompt
             context = f"Current system status: {self.get_system_status()}\n\nUser request: {prompt}"
-
+            logger.info(f"Processing LLM prompt with context: {context}")
             # Show thinking indicator
             with console.status("[bold green]🎵 Composing..."):
                 results = await self.llm_composer.generate_and_execute(context)

@@ -13,6 +13,7 @@ class InstrumentConfig:
     channel: int  # MIDI channel (0-15)
     name: Optional[str] = None
     default_velocity: int = 100
+    transpose: int = 0  # Transpose in semitones (-127 to 127)
 
     def __post_init__(self):
         """Validate instrument configuration."""

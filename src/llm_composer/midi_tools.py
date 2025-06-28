@@ -147,8 +147,8 @@ class MIDIToolHandler:
         if self.instrument_manager.create_instrument(
             command.name,
             command.channel,
-            command.velocity,
-            command.transpose,
+            default_velocity=command.velocity,
+            transpose=command.transpose,
         ):
             return MIDIToolResult(
                 success=True,

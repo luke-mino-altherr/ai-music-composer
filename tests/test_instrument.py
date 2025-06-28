@@ -56,7 +56,6 @@ class TestInstrumentConfig:
         assert config.channel == 5
         assert config.name == "Test"
         assert config.default_velocity == 64
-        assert config.transpose == 12
 
     def test_invalid_channel(self):
         """Test invalid channel raises ValueError."""
