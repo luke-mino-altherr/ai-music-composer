@@ -40,5 +40,8 @@ data/processed/
 *.log
 .DS_Store
 
+# Configuration and secrets
+.env
+
 # Neo4j
 neo4j/

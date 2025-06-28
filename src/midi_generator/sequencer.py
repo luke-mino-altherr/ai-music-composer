@@ -1,29 +1,15 @@
 """MIDI sequencer module for connecting MIDIController with PreciseTransport."""
 
-import logging
-import os
 from dataclasses import dataclass
 from typing import Dict, List, Union
 
+from ..logging_config import get_logger
 from .midi_controller import MIDIController
 from .structures import Sequence
 from .transport import PreciseTransport
 
-# Configure logger for this module
-logger = logging.getLogger(__name__)
-
-# Set default log level from environment variable or INFO
-log_level = os.getenv("SEQUENCER_LOG_LEVEL", "INFO").upper()
-logger.setLevel(getattr(logging, log_level, logging.INFO))
-
-# Create console handler if it doesn't exist
-if not logger.handlers:
-    handler = logging.StreamHandler()
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
+# Get logger for this module
+logger = get_logger(__name__)
 
 
 @dataclass

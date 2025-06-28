@@ -1,8 +1,6 @@
 """Transport module for precise musical timing and sequence synchronization."""
 
 import heapq
-import logging
-import os
 import platform
 import threading
 import time
@@ -10,21 +8,10 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Callable, Dict, List, Optional
 
-# Configure logger for this module
-logger = logging.getLogger(__name__)
+from ..logging_config import get_logger
 
-# Set default log level from environment variable or INFO
-log_level = os.getenv("TRANSPORT_LOG_LEVEL", "INFO").upper()
-logger.setLevel(getattr(logging, log_level, logging.INFO))
-
-# Create console handler if it doesn't exist
-if not logger.handlers:
-    handler = logging.StreamHandler()
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
+# Get logger for this module
+logger = get_logger(__name__)
 
 # Use high-precision timer based on platform
 if platform.system() == "Darwin":  # macOS

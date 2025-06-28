@@ -15,6 +15,8 @@ if __name__ == "__main__":
     src_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     sys.path.insert(0, src_dir)
 
+from config import get_default_bpm
+from logging_config import setup_logging
 from midi_generator import InstrumentManager, MIDIControllerAdapter, SequencerAdapter
 from midi_generator.midi_controller import MIDIController
 from midi_generator.sequencer import MIDISequencer
@@ -477,8 +479,11 @@ def main():
     console.print("[bold blue]AI Music Composer CLI[/bold blue]")
     console.print("Type 'help' for available commands")
 
+    # Initialize logging
+    setup_logging()
+
     controller = MIDIController()
-    transport = PreciseTransport(initial_bpm=120.0)  # Default 120 BPM
+    transport = PreciseTransport(initial_bpm=get_default_bpm())
     sequencer = MIDISequencer(controller, transport)
 
     # Create adapters and instrument manager

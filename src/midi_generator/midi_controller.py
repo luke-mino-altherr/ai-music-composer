@@ -1,29 +1,16 @@
-"""MIDI controller module for handling MIDI output and playback."""
+"""MIDI controller module for handling MIDI output and playbook."""
 
-import logging
-import os
 import time
 
 import mido
 from rich.console import Console
 
+from ..logging_config import get_logger
+
 console = Console()
 
-# Configure logger for this module
-logger = logging.getLogger(__name__)
-
-# Set default log level from environment variable or INFO
-log_level = os.getenv("MIDI_LOG_LEVEL", "INFO").upper()
-logger.setLevel(getattr(logging, log_level, logging.INFO))
-
-# Create console handler if it doesn't exist
-if not logger.handlers:
-    handler = logging.StreamHandler()
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
+# Get logger for this module
+logger = get_logger(__name__)
 
 
 class MIDIController:

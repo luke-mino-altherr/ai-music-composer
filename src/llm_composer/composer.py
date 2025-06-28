@@ -3,13 +3,15 @@
 import json
 from typing import List, Optional
 
-from dotenv import load_dotenv
 from langchain.callbacks.base import BaseCallbackHandler
 from langchain.chains import LLMChain
 from langchain.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 from pydantic import ValidationError
 
+from ..config import get_config
+from .context import ContextBuilder, PromptAugmenter
+from .memory import ComposerMemory, ConversationTurn
 from .midi_tools import MIDIToolHandler, MIDIToolResult
 from .models import MIDICommand
 
@@ -83,24 +85,34 @@ class LLMComposer:
     def __init__(
         self,
         midi_tool_handler: MIDIToolHandler,
-        model_name: str = "gpt-3.5-turbo",
-        temperature: float = 0.7,
+        model_name: Optional[str] = None,
+        temperature: Optional[float] = None,
         callback_handler: Optional[BaseCallbackHandler] = None,
+        memory: Optional[ComposerMemory] = None,
     ):
         """Initialize the LLM composer.
 
         Args:
             midi_tool_handler: Handler for executing MIDI commands
-            model_name: The name of the OpenAI model to use
-            temperature: The temperature for generation (0.0 to 1.0)
+            model_name: The name of the OpenAI model to use (defaults to config)
+            temperature: The temperature for generation (defaults to config)
             callback_handler: Optional callback handler for LangChain
+            memory: Optional memory system (creates new one if None)
         """
-        load_dotenv()  # Load environment variables from .env file
+        config = get_config()
 
         self.midi_tool_handler = midi_tool_handler
+        self.memory = memory or ComposerMemory()
+        self.context_builder = ContextBuilder(self.memory)
+        self.prompt_augmenter = PromptAugmenter(self.context_builder)
+
         self.llm = ChatOpenAI(
-            model_name=model_name,
-            temperature=temperature,
+            model_name=model_name or config.llm.model_name,
+            temperature=temperature or config.llm.temperature,
+            openai_api_key=config.llm.openai_api_key,
+            openai_organization=config.llm.openai_organization_id,
+            max_tokens=config.llm.max_tokens,
+            request_timeout=config.llm.timeout,
             callbacks=[callback_handler] if callback_handler else None,
         )
 
@@ -111,6 +123,148 @@ class LLMComposer:
 
         self.chain = LLMChain(llm=self.llm, prompt=self.prompt)
 
+    def _extract_musical_intent(self, user_prompt: str) -> str:
+        """Extract musical intent from user prompt."""
+        prompt_lower = user_prompt.lower()
+
+        # Basic intent classification
+        if any(word in prompt_lower for word in ["create", "add", "make", "new"]):
+            if any(
+                word in prompt_lower
+                for word in ["instrument", "piano", "bass", "drums"]
+            ):
+                return "create_instrument"
+            elif any(
+                word in prompt_lower
+                for word in ["sequence", "melody", "chord", "scale"]
+            ):
+                return "create_sequence"
+        elif any(word in prompt_lower for word in ["stop", "pause", "halt"]):
+            return "stop_music"
+        elif any(word in prompt_lower for word in ["play", "start", "begin"]):
+            return "play_music"
+        elif any(
+            word in prompt_lower for word in ["change", "modify", "adjust", "update"]
+        ):
+            return "modify_music"
+        elif any(word in prompt_lower for word in ["faster", "slower", "tempo", "bpm"]):
+            return "change_tempo"
+        elif any(
+            word in prompt_lower for word in ["louder", "softer", "volume", "velocity"]
+        ):
+            return "change_volume"
+
+        return "general_musical_request"
+
+    def _update_memory_from_results(
+        self, commands: List[MIDICommand], results: List[MIDIToolResult]
+    ):
+        """Update memory based on executed commands and their results."""
+        from .memory import InstrumentMemory, SequenceMemory
+
+        for command, result in zip(commands, results):
+            if not result.success:
+                continue
+
+            # Handle different command types
+            if hasattr(command, "type"):
+                if command.type == "create_instrument":
+                    # Add instrument to memory
+                    instrument_memory = InstrumentMemory(
+                        name=command.name,
+                        channel=command.channel,
+                        instrument_type=self._infer_instrument_type(command.name),
+                        velocity=getattr(command, "velocity", 100),
+                        transpose=getattr(command, "transpose", 0),
+                        musical_role=self._infer_musical_role(command.name),
+                    )
+                    self.memory.add_instrument(instrument_memory)
+
+                elif (
+                    command.type == "play_sequence"
+                    and result.data
+                    and "sequence_id" in result.data
+                ):
+                    # Add sequence to memory
+                    sequence_id = result.data["sequence_id"]
+                    sequence_memory = SequenceMemory(
+                        id=sequence_id,
+                        instrument_name=getattr(command, "instrument", "unknown"),
+                        notes=getattr(command, "notes", []),
+                        is_looping=getattr(command, "loop", False),
+                        musical_purpose=self._infer_sequence_purpose(command),
+                        key_signature=self.memory.musical_context.current_key,
+                    )
+                    self.memory.add_sequence(sequence_memory)
+
+                elif command.type == "remove_instrument":
+                    self.memory.remove_instrument(command.name)
+
+                elif command.type == "stop_sequence" and hasattr(
+                    command, "sequence_id"
+                ):
+                    self.memory.remove_sequence(command.sequence_id)
+
+                elif command.type == "stop_all":
+                    # Clear all sequences but keep instruments
+                    for seq_id in list(self.memory.sequences.keys()):
+                        self.memory.remove_sequence(seq_id)
+
+        # Update musical context based on current state
+        self.memory.infer_musical_context()
+
+    def _infer_instrument_type(self, name: str) -> str:
+        """Infer instrument type from name."""
+        name_lower = name.lower()
+
+        if any(word in name_lower for word in ["piano", "keyboard", "keys"]):
+            return "piano"
+        elif any(word in name_lower for word in ["bass", "low"]):
+            return "bass"
+        elif any(word in name_lower for word in ["drum", "percussion", "beat"]):
+            return "drums"
+        elif any(word in name_lower for word in ["guitar", "string"]):
+            return "guitar"
+        elif any(word in name_lower for word in ["synth", "pad", "lead"]):
+            return "synthesizer"
+        else:
+            return "unknown"
+
+    def _infer_musical_role(self, name: str):
+        """Infer musical role from instrument name."""
+        from .memory import MusicalRole
+
+        name_lower = name.lower()
+
+        if any(word in name_lower for word in ["bass", "low"]):
+            return MusicalRole.BASS
+        elif any(
+            word in name_lower for word in ["drum", "percussion", "beat", "rhythm"]
+        ):
+            return MusicalRole.RHYTHM
+        elif any(word in name_lower for word in ["lead", "solo"]):
+            return MusicalRole.LEAD
+        elif any(word in name_lower for word in ["pad", "string", "choir"]):
+            return MusicalRole.PAD
+        elif any(word in name_lower for word in ["harmony", "chord"]):
+            return MusicalRole.HARMONY
+        else:
+            return MusicalRole.MELODY
+
+    def _infer_sequence_purpose(self, command) -> str:
+        """Infer sequence purpose from command."""
+        if hasattr(command, "instrument"):
+            instrument_name = command.instrument.lower()
+            if any(word in instrument_name for word in ["bass"]):
+                return "bassline"
+            elif any(word in instrument_name for word in ["drum", "percussion"]):
+                return "drums"
+            elif any(word in instrument_name for word in ["chord", "harmony"]):
+                return "chord_progression"
+
+        # Default to melody
+        return "melody"
+
     async def generate_and_execute(self, input_text: str) -> List[MIDIToolResult]:
         """Generate and execute MIDI commands based on the input text.
 
@@ -120,7 +274,14 @@ class LLMComposer:
         Returns:
             List of MIDIToolResults from executing the commands
         """
-        response = await self.chain.ainvoke({"input": input_text})
+        from datetime import datetime
+
+        # Augment prompt with context from memory
+        augmented_prompt = self.prompt_augmenter.augment_prompt(input_text)
+
+        # Generate response from LLM
+        response = await self.chain.ainvoke({"input": augmented_prompt})
+
         try:
             # Parse the response text as JSON
             raw_commands = json.loads(response["text"])
@@ -129,12 +290,15 @@ class LLMComposer:
 
             # Validate and convert each command
             results = []
+            executed_commands = []
+
             for raw_cmd in raw_commands:
                 try:
                     # Validate command against our models
                     command = MIDICommand.model_validate(raw_cmd)
                     result = self.midi_tool_handler.execute_command(command)
                     results.append(result)
+                    executed_commands.append(command)
                 except ValidationError as e:
                     results.append(
                         MIDIToolResult(
@@ -143,6 +307,20 @@ class LLMComposer:
                             data={"raw_command": raw_cmd},
                         )
                     )
+
+            # Record interaction in memory
+            conversation_turn = ConversationTurn(
+                timestamp=datetime.now(),
+                user_prompt=input_text,
+                llm_response=response["text"],
+                commands_executed=executed_commands,
+                musical_intent=self._extract_musical_intent(input_text),
+                referenced_elements=self.memory.find_referenced_elements(input_text),
+            )
+            self.memory.add_conversation_turn(conversation_turn)
+
+            # Update memory based on successful commands
+            self._update_memory_from_results(executed_commands, results)
 
             return results
 

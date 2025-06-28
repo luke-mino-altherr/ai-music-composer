@@ -1,22 +1,23 @@
 """Database initialization module for setting up the music theory database."""
 
-import logging
-from typing import List, Dict
+from typing import Dict, List
+
+from music21 import chord, interval, pitch, scale
 from neomodel import config, db
-from music21 import pitch, interval, scale, chord
+
+from ..logging_config import get_logger
 from .models import (
-    Interval,
-    Tone,
-    Scale,
+    TONICS,
     Chord,
     ChordInstance,
+    Interval,
+    Scale,
     ScaleInstance,
-    TONICS,
+    Tone,
     get_alternative_name,
 )
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Define common intervals, scales, and chord types
 INTERVALS = [

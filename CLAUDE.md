@@ -11,9 +11,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Add dev dependency**: `poetry add --group dev <package>`
 
 ### Running the Application
-- **CLI with Poetry**: `poetry run composer`
-- **CLI directly**: `python src/composer_cli.py`
-- **Script entry point**: `composer` (after `poetry install`)
+- **Direct MIDI CLI**: `poetry run composer` or `composer` (after `poetry install`)
+- **LLM-powered CLI**: `poetry run llm-composer` or `llm-composer` (after `poetry install`)
+- **Direct execution**: `python src/composer_cli.py` or `python src/llm_cli.py`
 
 ### Testing
 - **Run all tests**: `pytest`
@@ -78,10 +78,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Configuration
 
-- **Environment**: Use `.env` file for `OPENAI_API_KEY`
-- **Logging**: Set `MIDI_LOG_LEVEL` or `SEQUENCER_LOG_LEVEL` environment variables
-- **Neo4j**: Database runs in Docker, credentials in `src/database/models.py`
+- **Centralized Config**: All settings managed in `src/config.py`
+- **Centralized Logging**: All logging configured in `src/logging_config.py`
+- **Environment File**: Copy `.env.example` to `.env` and customize values
+- **Required**: `OPENAI_API_KEY` in `.env` for LLM features
+- **Logging**: Configure via `LOG_LEVEL`, `MIDI_LOG_LEVEL`, etc. in `.env`
+- **Neo4j**: Database settings configurable via `NEO4J_*` environment variables
+- **MIDI**: Default BPM, velocity, channel configurable via `MIDI_*` variables
 - **Code style**: Black (88 char line length), Flake8 with Google docstrings
+
+### Logging Best Practices
+
+- **Get loggers**: Use `from logging_config import get_logger; logger = get_logger(__name__)`
+- **Module-specific levels**: Configured per module in `logging_config.py`
+- **File rotation**: Automatic log file rotation (10MB, 5 backups)
+- **Debug utilities**: `get_debug_logger()` and `temporary_log_level()` context manager
+- **Centralized setup**: Call `setup_logging()` once at application start
 
 ### Testing Strategy
 

@@ -1,20 +1,22 @@
 """Database models for storing musical data using Neo4j and neomodel."""
 
 from neomodel import (
-    StructuredNode,
-    StringProperty,
-    IntegerProperty,
     FloatProperty,
-    RelationshipTo,
-    RelationshipFrom,
+    IntegerProperty,
     One,
-    ZeroOrMore,
+    RelationshipFrom,
+    RelationshipTo,
+    StringProperty,
+    StructuredNode,
     StructuredRel,
+    ZeroOrMore,
     config,
 )
 
 # Configure neomodel to connect to Neo4j
-config.DATABASE_URL = "bolt://neo4j:musiccomposer@localhost:7687"
+from ..config import get_database_url
+
+config.DATABASE_URL = get_database_url()
 
 
 class InRel(StructuredRel):
